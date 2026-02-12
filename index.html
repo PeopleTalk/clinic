@@ -673,6 +673,13 @@
                     <button onclick="handleOption('emergency')" class="text-xs bg-red-50 text-red-600 py-2 px-1 rounded-lg hover:bg-red-100 transition-colors border border-red-100">
                         🚑 Emergency
                     </button>
+                    <!-- New Features -->
+                    <button onclick="handleOption('call_ambulance')" class="text-xs bg-orange-50 text-orange-600 py-2 px-1 rounded-lg hover:bg-orange-100 transition-colors border border-orange-100">
+                        📞 Call Ambulance
+                    </button>
+                    <button onclick="handleOption('find_hospital')" class="text-xs bg-purple-50 text-purple-600 py-2 px-1 rounded-lg hover:bg-purple-100 transition-colors border border-purple-100">
+                        🏥 Find Hospital
+                    </button>
                 </div>
 
                 <!-- Text Input (Hidden by default) -->
@@ -864,7 +871,7 @@
         });
 
         /* --- AI Widget Logic --- */
-        let chatState = 'idle'; // idle, waiting_for_name, waiting_for_phone
+        let chatState = 'idle'; // idle, waiting_for_name, waiting_for_phone, waiting_for_location
         let chatData = { name: '', phone: '' };
 
         function toggleChat() {
@@ -961,6 +968,23 @@
                         addBotMessage("🚨 For medical emergencies, please call +91 11 2465 7890 immediately or visit our casualty ward in South Ext.");
                     }, 500);
                     break;
+                case 'call_ambulance':
+                    addUserMessage("Call Ambulance (108)");
+                    setTimeout(() => {
+                        addBotMessage("🚨 Dialing 108 Emergency Services... Please stay on the line.");
+                        setTimeout(() => {
+                            window.location.href = "tel:108";
+                        }, 1500);
+                    }, 500);
+                    break;
+                case 'find_hospital':
+                    addUserMessage("Find nearby hospitals");
+                    setTimeout(() => {
+                        addBotMessage("I can help you find hospitals. Please enter your **Current Location** or **Address**.");
+                        chatState = 'waiting_for_location';
+                        toggleChatInput(true);
+                    }, 500);
+                    break;
             }
         }
 
@@ -988,6 +1012,32 @@
                     addBotMessage("Perfect. Booking your appointment now... <i class='fa-solid fa-spinner fa-spin'></i>");
                     submitChatAppointment();
                 }, 600);
+            } else if (chatState === 'waiting_for_location') {
+                chatState = 'processing';
+                const userLocation = text;
+                setTimeout(() => {
+                    // Simulated Search Results based on input
+                    const hospitals = [
+                        "AIIMS New Delhi",
+                        "Safdarjung Hospital",
+                        "Max Super Speciality Hospital"
+                    ];
+                    
+                    let msg = `Here are top hospitals near **${userLocation}**. Click to get directions:<br><div class='flex flex-col space-y-2 mt-3'>`;
+                    
+                    hospitals.forEach(hosp => {
+                        // Create Google Maps Direction Link
+                        const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(userLocation)}&destination=${encodeURIComponent(hosp + ", Delhi")}`;
+                        msg += `<a href="${url}" target="_blank" class="flex items-center p-2 bg-slate-100 rounded hover:bg-sky-50 transition-colors text-xs text-slate-700 font-medium border border-slate-200">
+                                    <i class="fa-solid fa-location-arrow text-red-500 mr-2"></i> ${hosp}
+                                </a>`;
+                    });
+                    msg += `</div>`;
+                    
+                    addBotMessage(msg);
+                    chatState = 'idle';
+                    toggleChatInput(false);
+                }, 1000);
             } else {
                 // Default fallback if typing outside flow
                 setTimeout(() => {
