@@ -271,6 +271,7 @@
             <div class="namaste-icon">🙏</div>
             <div class="namaste-text">NAMASTE</div>
             <p class="text-slate-500 mt-2 text-sm tracking-widest uppercase">Welcome to Arogya Life</p>
+            <p class="text-slate-400 mt-1 text-xs font-light">Made with <span class="text-red-500">❤️</span> by Rahul</p>
         </div>
     </div>
 
@@ -656,20 +657,31 @@
                 </div>
             </div>
 
-            <!-- Quick Options -->
-            <div class="p-3 bg-white border-t border-slate-100 grid grid-cols-2 gap-2">
-                <button onclick="handleOption('appointment')" class="text-xs bg-sky-50 text-sky-600 py-2 px-1 rounded-lg hover:bg-sky-100 transition-colors border border-sky-100">
-                    📅 Book Now
-                </button>
-                <button onclick="handleOption('doctors')" class="text-xs bg-sky-50 text-sky-600 py-2 px-1 rounded-lg hover:bg-sky-100 transition-colors border border-sky-100">
-                    👨‍⚕️ Doctors
-                </button>
-                <button onclick="handleOption('services')" class="text-xs bg-sky-50 text-sky-600 py-2 px-1 rounded-lg hover:bg-sky-100 transition-colors border border-sky-100">
-                    🏥 Services
-                </button>
-                <button onclick="handleOption('emergency')" class="text-xs bg-red-50 text-red-600 py-2 px-1 rounded-lg hover:bg-red-100 transition-colors border border-red-100">
-                    🚑 Emergency
-                </button>
+            <!-- Controls Container -->
+            <div id="chat-controls" class="bg-white border-t border-slate-100">
+                <!-- Quick Options (Default) -->
+                <div id="chat-options" class="p-3 grid grid-cols-2 gap-2">
+                    <button onclick="handleOption('appointment')" class="text-xs bg-sky-50 text-sky-600 py-2 px-1 rounded-lg hover:bg-sky-100 transition-colors border border-sky-100">
+                        📅 Book Now
+                    </button>
+                    <button onclick="handleOption('doctors')" class="text-xs bg-sky-50 text-sky-600 py-2 px-1 rounded-lg hover:bg-sky-100 transition-colors border border-sky-100">
+                        👨‍⚕️ Doctors
+                    </button>
+                    <button onclick="handleOption('services')" class="text-xs bg-sky-50 text-sky-600 py-2 px-1 rounded-lg hover:bg-sky-100 transition-colors border border-sky-100">
+                        🏥 Services
+                    </button>
+                    <button onclick="handleOption('emergency')" class="text-xs bg-red-50 text-red-600 py-2 px-1 rounded-lg hover:bg-red-100 transition-colors border border-red-100">
+                        🚑 Emergency
+                    </button>
+                </div>
+
+                <!-- Text Input (Hidden by default) -->
+                <form id="chat-input-form" class="hidden p-3 flex space-x-2" onsubmit="handleChatSubmit(event)">
+                    <input type="text" id="chat-input" class="flex-1 border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500" placeholder="Type here..." autocomplete="off">
+                    <button type="submit" class="bg-sky-500 text-white rounded-md px-3 py-2 hover:bg-sky-600 transition-colors">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -852,6 +864,9 @@
         });
 
         /* --- AI Widget Logic --- */
+        let chatState = 'idle'; // idle, waiting_for_name, waiting_for_phone
+        let chatData = { name: '', phone: '' };
+
         function toggleChat() {
             const chatWindow = document.getElementById('chat-window');
             if (chatWindow.classList.contains('hidden')) {
@@ -869,59 +884,148 @@
             }
         }
 
-        function handleOption(option) {
+        // Helper: Add Bot Message
+        function addBotMessage(text) {
             const chatMessages = document.getElementById('chat-messages');
-            let userText = "";
-            let botResponse = "";
-            let action = null;
-
-            switch(option) {
-                case 'appointment':
-                    userText = "I want to book an appointment.";
-                    botResponse = "I can help with that! Taking you to our booking form now. Please fill in your details.";
-                    action = () => navigateTo('contact');
-                    break;
-                case 'doctors':
-                    userText = "I'm looking for a doctor.";
-                    botResponse = "We have excellent specialists in Delhi. Here is our list of doctors.";
-                    action = () => navigateTo('doctors');
-                    break;
-                case 'services':
-                    userText = "What services do you offer?";
-                    botResponse = "We offer Diagnostics, Cardiology, Pediatrics, and more. Let me show you.";
-                    action = () => navigateTo('services');
-                    break;
-                case 'emergency':
-                    userText = "This is an emergency!";
-                    botResponse = "🚨 For medical emergencies, please call +91 11 2465 7890 immediately or visit our casualty ward in South Ext.";
-                    break;
-            }
-
-            const userMsgHTML = `
-                <div class="flex justify-end fade-in">
-                    <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tr-none shadow-sm text-sm max-w-[80%]">
-                        ${userText}
+            const msgHTML = `
+                <div class="flex items-start space-x-2 fade-in">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center text-white text-xs shrink-0">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm border border-slate-100 text-sm text-slate-600 max-w-[85%]">
+                        ${text}
                     </div>
                 </div>
             `;
-            chatMessages.insertAdjacentHTML('beforeend', userMsgHTML);
+            chatMessages.insertAdjacentHTML('beforeend', msgHTML);
             chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
 
-            setTimeout(() => {
-                const botMsgHTML = `
-                    <div class="flex items-start space-x-2 fade-in">
-                        <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-400 to-indigo-500 flex items-center justify-center text-white text-xs">
-                            <i class="fa-solid fa-robot"></i>
-                        </div>
-                        <div class="bg-white p-3 rounded-2xl rounded-tl-none shadow-sm border border-slate-100 text-sm text-slate-600 max-w-[80%]">
-                            ${botResponse}
-                        </div>
+        // Helper: Add User Message
+        function addUserMessage(text) {
+            const chatMessages = document.getElementById('chat-messages');
+            const msgHTML = `
+                <div class="flex justify-end fade-in">
+                    <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tr-none shadow-sm text-sm max-w-[85%]">
+                        ${text}
                     </div>
-                `;
-                chatMessages.insertAdjacentHTML('beforeend', botMsgHTML);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-                if (action) setTimeout(action, 1000);
-            }, 600);
+                </div>
+            `;
+            chatMessages.insertAdjacentHTML('beforeend', msgHTML);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Toggle Input Mode
+        function toggleChatInput(showInput) {
+            const options = document.getElementById('chat-options');
+            const inputForm = document.getElementById('chat-input-form');
+            const inputField = document.getElementById('chat-input');
+
+            if (showInput) {
+                options.classList.add('hidden');
+                inputForm.classList.remove('hidden');
+                setTimeout(() => inputField.focus(), 100);
+            } else {
+                options.classList.remove('hidden');
+                inputForm.classList.add('hidden');
+            }
+        }
+
+        function handleOption(option) {
+            switch(option) {
+                case 'appointment':
+                    addUserMessage("I want to book an appointment.");
+                    setTimeout(() => {
+                        addBotMessage("I can help you with that right here! First, please enter your **Full Name**.");
+                        chatState = 'waiting_for_name';
+                        toggleChatInput(true);
+                    }, 500);
+                    break;
+                case 'doctors':
+                    addUserMessage("I'm looking for a doctor.");
+                    setTimeout(() => {
+                        addBotMessage("We have excellent specialists in Delhi. Here is our list of doctors.");
+                        navigateTo('doctors');
+                    }, 500);
+                    break;
+                case 'services':
+                    addUserMessage("What services do you offer?");
+                    setTimeout(() => {
+                        addBotMessage("We offer Diagnostics, Cardiology, Pediatrics, and more. Let me show you.");
+                        navigateTo('services');
+                    }, 500);
+                    break;
+                case 'emergency':
+                    addUserMessage("This is an emergency!");
+                    setTimeout(() => {
+                        addBotMessage("🚨 For medical emergencies, please call +91 11 2465 7890 immediately or visit our casualty ward in South Ext.");
+                    }, 500);
+                    break;
+            }
+        }
+
+        // Handle text input submission
+        function handleChatSubmit(event) {
+            event.preventDefault();
+            const input = document.getElementById('chat-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            addUserMessage(text);
+            input.value = '';
+
+            // Process based on state
+            if (chatState === 'waiting_for_name') {
+                chatData.name = text;
+                setTimeout(() => {
+                    addBotMessage(`Thanks, ${text}. Now, please enter your **Phone Number**.`);
+                    chatState = 'waiting_for_phone';
+                }, 600);
+            } else if (chatState === 'waiting_for_phone') {
+                chatData.phone = text;
+                chatState = 'processing'; // Prevent double submission
+                setTimeout(() => {
+                    addBotMessage("Perfect. Booking your appointment now... <i class='fa-solid fa-spinner fa-spin'></i>");
+                    submitChatAppointment();
+                }, 600);
+            } else {
+                // Default fallback if typing outside flow
+                setTimeout(() => {
+                    addBotMessage("I'm sorry, I didn't catch that. Please use the buttons below.");
+                    toggleChatInput(false);
+                }, 600);
+            }
+        }
+
+        // Backend Submission Logic for Chatbot
+        async function submitChatAppointment() {
+            try {
+                const formData = new FormData();
+                formData.append('access_key', 'd8fa54f1-20c5-4fa4-930c-d372bd11baa0');
+                formData.append('name', chatData.name);
+                formData.append('phone', chatData.phone);
+                formData.append('service', 'General Consultation (Booked via AI Chat)');
+                formData.append('message', 'Automatic booking request from AI Chatbot interface.');
+
+                const response = await fetch('https://api.web3forms.com/submit', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.status === 200) {
+                    addBotMessage("✅ **Appointment Confirmed!** <br> We have received your details and will contact you shortly.");
+                } else {
+                    addBotMessage("⚠️ Something went wrong. Please try calling us directly.");
+                }
+            } catch (error) {
+                console.error(error);
+                addBotMessage("⚠️ Network error. Please check your connection.");
+            } finally {
+                // Reset State
+                chatState = 'idle';
+                chatData = { name: '', phone: '' };
+                toggleChatInput(false); // Show options again
+            }
         }
     </script>
 </body>
