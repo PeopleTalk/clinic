@@ -748,26 +748,11 @@
     </footer>
 
     <script>
-        // Preloader Logic
-        window.addEventListener('load', () => {
-            const minTime = 2000; // Minimum time to show preloader (2s)
-            const start = performance.now();
-
-            const hidePreloader = () => {
-                document.body.classList.add('loaded');
-                document.body.style.overflow = ''; 
-            };
-            
-            // Ensure preloader stays for at least minTime
-            const now = performance.now();
-            const timePassed = now - start;
-            const delay = Math.max(0, minTime - timePassed); 
-
-            setTimeout(hidePreloader, 2000); 
-        });
-        
-        // Prevent scrolling while loading
-        document.body.style.overflow = 'hidden';
+        // API Key Configuration
+        // The environment usually provides the key, but we fall back to the user's provided key.
+        const systemApiKey = ""; 
+        const userApiKey = "AIzaSyB2UzyD34_cdl5JJJ9yG5nlgyj1xr8TULI"; 
+        const apiKey = systemApiKey || userApiKey;
 
         // Custom Cursor Logic
         const cursorDot = document.querySelector('.cursor-dot');
@@ -1020,35 +1005,82 @@
             } else if (chatState === 'waiting_for_location') {
                 chatState = 'processing';
                 const userLocation = text;
-                setTimeout(() => {
-                    // Simulated Search Results based on input
-                    const hospitals = [
-                        "AIIMS New Delhi",
-                        "Safdarjung Hospital",
-                        "Max Super Speciality Hospital"
-                    ];
-                    
-                    let msg = `Here are top hospitals near **${userLocation}**. Click to get directions:<br><div class='flex flex-col space-y-2 mt-3'>`;
-                    
-                    hospitals.forEach(hosp => {
-                        // Create Google Maps Direction Link
-                        const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(userLocation)}&destination=${encodeURIComponent(hosp + ", Delhi")}`;
-                        msg += `<a href="${url}" target="_blank" class="flex items-center p-2 bg-slate-100 rounded hover:bg-sky-50 transition-colors text-xs text-slate-700 font-medium border border-slate-200">
-                                    <i class="fa-solid fa-location-arrow text-red-500 mr-2"></i> ${hosp}
-                                </a>`;
-                    });
-                    msg += `</div>`;
-                    
-                    addBotMessage(msg);
-                    chatState = 'idle';
-                    toggleChatInput(false);
-                }, 1000);
+                addBotMessage(`Searching for hospitals near **${userLocation}**... <i class='fa-solid fa-spinner fa-spin'></i>`);
+                
+                // Call Gemini API for Real Hospital Data
+                fetchHospitalsFromGemini(userLocation);
             } else {
                 // Default fallback if typing outside flow
                 setTimeout(() => {
                     addBotMessage("I'm sorry, I didn't catch that. Please use the buttons below.");
                     toggleChatInput(false);
                 }, 600);
+            }
+        }
+
+        // Gemini API Call for Hospitals
+        async function fetchHospitalsFromGemini(location) {
+            try {
+                const prompt = `Find 3 real, top-rated hospitals near ${location}. Return a strictly valid JSON array of objects where each object has "name" and "address". Do not include markdown formatting like \`\`\`json. Just the raw JSON.`;
+
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        // Enable Google Search Grounding for real-world data
+                        tools: [{ google_search: {} }] 
+                    })
+                });
+
+                const data = await response.json();
+                
+                // Extract text from response
+                let resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                // Clean up potential markdown formatting if the model adds it
+                if (resultText) {
+                    resultText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const hospitals = JSON.parse(resultText);
+
+                    let msg = `Here are top hospitals found near **${location}**. Click to get directions:<br><div class='flex flex-col space-y-2 mt-3'>`;
+                    
+                    hospitals.forEach(hosp => {
+                        // Create Google Maps Direction Link
+                        const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(location)}&destination=${encodeURIComponent(hosp.address)}`;
+                        msg += `<a href="${url}" target="_blank" class="flex items-center p-2 bg-slate-100 rounded hover:bg-sky-50 transition-colors text-xs text-slate-700 font-medium border border-slate-200">
+                                    <i class="fa-solid fa-location-arrow text-red-500 mr-2"></i> 
+                                    <div>
+                                        <div class="font-bold">${hosp.name}</div>
+                                        <div class="text-[10px] text-slate-500 truncate w-48">${hosp.address}</div>
+                                    </div>
+                                </a>`;
+                    });
+                    msg += `</div>`;
+                    
+                    addBotMessage(msg);
+                } else {
+                    throw new Error("No data returned");
+                }
+
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                // Fallback to static data if API fails
+                const hospitals = ["AIIMS", "Safdarjung Hospital", "Max Super Speciality"];
+                let msg = `(Offline Mode) Here are major hospitals. Click to search directions:<br><div class='flex flex-col space-y-2 mt-3'>`;
+                hospitals.forEach(hosp => {
+                    const url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(location)}&destination=${encodeURIComponent(hosp + " Hospital")}`;
+                    msg += `<a href="${url}" target="_blank" class="flex items-center p-2 bg-slate-100 rounded hover:bg-sky-50 transition-colors text-xs text-slate-700 font-medium border border-slate-200">
+                                <i class="fa-solid fa-location-arrow text-red-500 mr-2"></i> ${hosp}
+                            </a>`;
+                });
+                msg += `</div>`;
+                addBotMessage(msg);
+            } finally {
+                chatState = 'idle';
+                toggleChatInput(false);
             }
         }
 
