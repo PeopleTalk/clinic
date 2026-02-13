@@ -754,6 +754,35 @@
         const userApiKey = "AIzaSyB2UzyD34_cdl5JJJ9yG5nlgyj1xr8TULI"; 
         const apiKey = systemApiKey || userApiKey;
 
+        // Preloader Logic (Updated for Robustness)
+        const startTime = Date.now();
+        const minLoadingTime = 2000; // 2 seconds minimum display
+
+        function finishLoading() {
+            const timeElapsed = Date.now() - startTime;
+            const delay = Math.max(0, minLoadingTime - timeElapsed);
+
+            setTimeout(() => {
+                const preloader = document.getElementById('preloader');
+                if (preloader && !document.body.classList.contains('loaded')) {
+                    document.body.classList.add('loaded');
+                    document.body.style.overflow = ''; 
+                }
+            }, delay);
+        }
+
+        window.addEventListener('load', finishLoading);
+        
+        // Fallback: Force remove preloader after 5 seconds max (prevents getting stuck)
+        setTimeout(() => {
+            if (!document.body.classList.contains('loaded')) {
+                finishLoading();
+            }
+        }, 5000);
+        
+        // Prevent scrolling while loading
+        document.body.style.overflow = 'hidden';
+
         // Custom Cursor Logic
         const cursorDot = document.querySelector('.cursor-dot');
         const cursorOutline = document.querySelector('.cursor-outline');
